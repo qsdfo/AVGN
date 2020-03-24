@@ -32,7 +32,7 @@ if not os.path.exists(bird_db_loc):
 
 parallel = False
 verbosity = 0
-n_jobs = 1
+n_jobs = 20
 save = True
 
 
