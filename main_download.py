@@ -30,7 +30,7 @@ bird_db_loc = f'{os.path.expanduser("~")}/Data/bird-db'
 if not os.path.exists(bird_db_loc):
     os.makedirs(bird_db_loc)
 
-parallel = True
+parallel = False
 verbosity = 0
 n_jobs = 20
 save = True

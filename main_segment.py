@@ -117,7 +117,10 @@ hparams = {
 globals().update(hparams)
 now_string = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")  # this is used to identify this training instance
 # save the dictionary so that we can reload it for recovering waveforms
-dict_save = f'{os.path.expanduser("~")}/Data/bird-db/parameter_dictionaries/' + now_string + '_dict.pickle'
+dict_dir = f'{os.path.expanduser("~")}/Data/bird-db/parameter_dictionaries'
+if not os.path.isdir(dict_dir):
+    os.mkdir(dict_dir)
+dict_save = f'{dict_dir}/{now_string}_dict.pickle'
 with open(dict_save, 'wb') as f:
     pickle.dump(hparams, f, protocol=pickle.HIGHEST_PROTOCOL)
 print(dict_save)
