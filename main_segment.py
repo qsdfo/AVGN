@@ -130,7 +130,10 @@ _mel_basis = sg._build_mel_basis(hparams)  # build a basis function if you are u
 
 # point toward your downloaded dataset
 bird_species = glob(f'{os.path.expanduser("~")}/Data/bird-db/CAVI*')
-hdf5_save_loc = '/mnt/cube/tsainbur/Projects/github_repos/animalvocalizationgenerativenet/data/'
+hdf5_save_loc = f'{os.path.expanduser("~")}/Data/bird-db/hd5f_save_loc'
+if not os.path.exists(hdf5_save_loc):
+    os.mkdir(hdf5_save_loc)
+# hdf5_save_loc = '/mnt/cube/tsainbur/Projects/github_repos/animalvocalizationgenerativenet/data/'
 
 key_list = (
     'all_bird_wav_file',  # Wav file (bout_raw) that the syllable came from
@@ -229,7 +232,11 @@ for indv in tqdm(np.unique(song_df.bird)[::-1]):
         bird_data[dtype] = np.array(bird_data[dtype])
     # reformat bird syllables
     print('len dataset: ', len(bird_data['all_bird_syll_lengths']))
-    save_loc = hdf5_save_loc + species + '_wavs/' + indv.replace(" ", "_") + '_' + str(syll_size) + '.hdf5'
+    save_dir = f'{hdf5_save_loc}/{species}_wavs'
+    save_name = indv.replace(" ", "_") + '_' + str(syll_size) + '.hdf5'
+    save_loc = f'{save_dir}/{save_name}'
+    if not os.path.isdir(save_dir):
+        os.mkdir(save_dir)
     if save:
         save_dataset(save_loc,
                      bird_data['all_bird_syll'],
