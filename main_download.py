@@ -7,7 +7,7 @@ import xlrd
 from datetime import timedelta
 import os
 import urllib.request
-from tqdm.autonotebook import tqdm
+from tqdm import tqdm
 from urllib.error import HTTPError
 from sklearn.externals.joblib import Parallel, delayed
 

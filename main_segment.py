@@ -14,7 +14,7 @@ import numpy as np
 import pandas as pd
 from praatio import tgio
 from sklearn.externals.joblib import Parallel, delayed
-from tqdm import tqdm_notebook as tqdm
+from tqdm import tqdm
 
 warnings.filterwarnings('ignore')
 import avgn.spectrogramming.spectrogramming as sg
