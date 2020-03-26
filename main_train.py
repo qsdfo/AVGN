@@ -16,7 +16,6 @@ import avgn
 import avgn.spectrogramming.spectrogramming as sg
 from PIL import Image
 
-
 model_type = 'GAIA'
 bird_name = 'CAVI'
 
@@ -88,12 +87,12 @@ iter_ = data_iterator(training_syllables, y=None, batch_size=batch_size, num_gpu
 nex = 16
 for ii in range(3):
     example_data = iter_.__next__()[0]
-    fig, ax = plt.subplots(nrows=1, ncols=nex, figsize=(nex * 2, 1 * 2))
-    for i in range(nex):
-        ax[i].matshow(example_data[i].reshape((dims[0], dims[1])), cmap=plt.cm.viridis, interpolation='nearest',
-                      origin='lower', vmin=0, vmax=1)
-        ax[i].axis('off')
-    plt.show()
+    # fig, ax = plt.subplots(nrows=1, ncols=nex, figsize=(nex * 2, 1 * 2))
+    # for i in range(nex):
+    #     ax[i].matshow(example_data[i].reshape((dims[0], dims[1])), cmap=plt.cm.viridis, interpolation='nearest',
+    #                   origin='lower', vmin=0, vmax=1)
+    #     ax[i].axis('off')
+    # plt.show()
 
 ### Define the network
 # [depth, filter size, stride] # decoder will become inverse of encoder
@@ -137,7 +136,6 @@ elif model_type == 'GAIA':
                  latent_loss='SSE', adam_eps=1.0, network_type='GAIA',
                  n_res=4, n_sample=2, style_dim=8, ch=64, n_hidden=hidden_size)
 
-
 ### Train the model
 ### Parameters, etc...
 num_epochs = 50  # how many epochs to train the network for
@@ -158,12 +156,21 @@ latent_loss_weights = 1.0  # 1e-2
 if model_type == 'ConvAE':
     return_list = ['train_D', 'train_E', 'L_d', 'L_e', 'recon_loss', 'KL_loss']
 elif model_type == 'GAIA':
-    return_list = []
+    return_list = ['train_D', 'train_G', 'L_d', 'L_g',
+                   'x_fake_recon_loss', 'x_real_recon_loss',
+                   'lr_D', 'lr_G', 'm_global',
+                   'discrim_proportion_fake', 'discrim_proportion_real',
+                   'x_fake_from_sample_recon_loss', 'x_fake_from_real_recon_loss',
+                   'gen_proportion_sample',
+                   ]
+else:
+    raise NotImplementedError('Not a valid model type')
+
 iter_ = data_iterator(training_syllables, y=None, batch_size=batch_size, num_gpus=num_gpus, dims=dims)
 validation_iter_ = data_iterator(validation_syllables, y=None, batch_size=batch_size, num_gpus=num_gpus, dims=dims)
 
 # train_AE(model, iter_,dataset_size = len(training_syllables), validation_iter_=False, learning_rate = 1.0, return_list=return_list)
-training_df, validation_df = train_AE(model, iter_, dataset_size=int(len(training_syllables) / 100),
+training_df, validation_df = train_AE(model, model_type=model_type, iter_=iter_, dataset_size=int(len(training_syllables) / 100),
                                       validation_iter_=validation_iter_, validation_size=len(validation_syllables),
                                       learning_rate=learning_rate, return_list=return_list,
                                       latent_loss_weights=latent_loss_weights)

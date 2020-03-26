@@ -27,6 +27,7 @@ def load_from_hdf5(hdf_locs, to_load, min_ex=1, verbose=False):
                 list(hf.attrs.values())[0], np.shape(hf['spectrograms'].value)[0]))
     return hdf5_content
 
+
 # Function for creating an iterator
 
 
@@ -39,21 +40,25 @@ def data_iterator(x, y=None, batch_size=False, num_gpus=1, dims=[10, 10], random
         idxs = np.arange(0, len(x))
         if randomize:
             np.random.shuffle(idxs)
-        for batch_idx in np.arange(0, len(x)-batch_size*num_gpus, batch_size*num_gpus):
-            cur_idxs = idxs[batch_idx:batch_idx+batch_size*num_gpus]
-            batch = x[cur_idxs].reshape((batch_size*num_gpus, np.prod(dims))).astype('float32')
+        for batch_idx in np.arange(0, len(x) - batch_size * num_gpus, batch_size * num_gpus):
+            cur_idxs = idxs[batch_idx:batch_idx + batch_size * num_gpus]
+            batch = x[cur_idxs].reshape((batch_size * num_gpus, np.prod(dims))).astype('float32')
             batch_y = y[cur_idxs] if y else None  # if there is a Y, grab it
-            yield batch/255., batch_y
+            yield batch / 255., batch_y
 
 
 # Function for training the networks
-def train_AE(model, iter_, dataset_size=1, latent_loss_weights=1.0e-1,
+def train_AE(model, model_type, iter_, dataset_size=1, latent_loss_weights=1.0e-1,
              validation_iter_=False, validation_size=0, learning_rate=1.0, return_list=[]):
     """
     Training an autoencoder network. NOTE: this will not work with GAN network architectures. Write a different function for that.
+
+    Parameters
+    ----------
+    model : object
     """
     # how many batches to iterate over
-    total_batch = int(np.floor(dataset_size/model.batch_size/model.num_gpus))
+    total_batch = int(np.floor(dataset_size / model.batch_size / model.num_gpus))
 
     tl = [getattr(model, i) for i in return_list]
 
@@ -63,40 +68,65 @@ def train_AE(model, iter_, dataset_size=1, latent_loss_weights=1.0e-1,
         model.batch_num += 1
         next_batches = iter_.__next__()[0]
         # run the epoch
-        training_rows.append([model.batch_num] +
-                             model.sess.run(tl,
-                                            {
-                                                model.x_input: next_batches,
-                                                model.latent_loss_weights: latent_loss_weights,
-                                                model.lr_D: learning_rate,
-                                                model.lr_E: learning_rate,
-                                            }
-                                            ))
+        if model_type == 'ConvAE':
+            training_rows.append([model.batch_num] +
+                                 model.sess.run(tl,
+                                                {
+                                                    model.x_input: next_batches,
+                                                    model.latent_loss_weights: latent_loss_weights,
+                                                    model.lr_D: learning_rate,
+                                                    model.lr_E: learning_rate,
+                                                }
+                                                ))
+        elif model_type == 'GAIA':
+            training_rows.append([model.batch_num] +
+                                 model.sess.run(tl,
+                                                {
+                                                    model.x_input: next_batches,
+                                                    model.lr_max: learning_rate,
+                                                    model.lr_sigma_slope: 20.,
+                                                    model.latent_loss_weights: learning_rate / 2.,
+                                                }
+                                                ))
 
     # how many validation batches to iterate over
     if validation_iter_ != False:
-        total_val_batch = int(np.floor((validation_size)/model.batch_size/model.num_gpus))
+        total_val_batch = int(np.floor((validation_size) / model.batch_size / model.num_gpus))
         val_rows = []  # saves information about training
         for batch in tqdm(np.arange(total_val_batch), leave=False):
             next_batches = validation_iter_.__next__()[0]
             # run the epoch
-            val_rows.append([model.batch_num] +
-                            model.sess.run(tl[2:],
-                                           {
-                                model.x_input: next_batches,
-                                model.latent_loss_weights: latent_loss_weights,
-                                model.lr_D: learning_rate,
-                                model.lr_E: learning_rate,
-                            }
-            ))
+            if model_type == 'ConvAE':
+                val_rows.append([model.batch_num] +
+                                model.sess.run(tl[2:],
+                                               {
+                                                   model.x_input: next_batches,
+                                                   model.latent_loss_weights: latent_loss_weights,
+                                                   model.lr_D: learning_rate,
+                                                   model.lr_E: learning_rate,
+                                               }
+                                               ))
+            elif model_type == 'GAIA':
+                # TODO select in tl only yhe nodes needed for validation. It's probably not just tl[2:]
+                val_rows.append([model.batch_num] +
+                                model.sess.run(tl[2:],
+                                               {
+                                                   model.x_input: next_batches,
+                                                   model.lr_max: learning_rate,
+                                                   model.lr_sigma_slope: 20.,
+                                                   model.latent_loss_weights: learning_rate / 2.,
+                                               }
+                                               ))
 
-        return pd.DataFrame(training_rows, columns=['batch'] + return_list), pd.DataFrame(val_rows[2:], columns=['batch'] + return_list[2:])
+        return pd.DataFrame(training_rows, columns=['batch'] + return_list), \
+               pd.DataFrame(val_rows[2:], columns=['batch'] + return_list[2:])
     else:
         return pd.DataFrame(training_rows, columns=['batch'] + return_list), None
 
 
 # function for visualizing the network in training
-def visualize_2D_AE(model, training_df, validation_df, example_data, num_examples, batch_size, num_gpus, dims, iter_, n_cols=4, std_to_plot=2.5, summary_density=50, save_loc=False, n_samps_per_dim=8):
+def visualize_2D_AE(model, training_df, validation_df, example_data, num_examples, batch_size, num_gpus, dims, iter_,
+                    n_cols=4, std_to_plot=2.5, summary_density=50, save_loc=False, n_samps_per_dim=8):
     """
     Visualization of AE as it trains in 2D space
     """
@@ -105,9 +135,9 @@ def visualize_2D_AE(model, training_df, validation_df, example_data, num_example
     # summarize training
     bins = [0] + np.unique(np.logspace(0, np.log2(np.max(training_df.batch +
                                                          [100])), num=summary_density, base=2).astype('int'))
-    training_df['batch_bin'] = pd.cut(training_df.batch+1, bins, labels=bins[:-1])
+    training_df['batch_bin'] = pd.cut(training_df.batch + 1, bins, labels=bins[:-1])
     training_summary = training_df.groupby(['batch_bin']).describe()
-    validation_df['batch_bin'] = pd.cut(validation_df.batch+1, bins, labels=bins[:-1])
+    validation_df['batch_bin'] = pd.cut(validation_df.batch + 1, bins, labels=bins[:-1])
     validation_summary = validation_df.groupby(['batch_bin']).describe()
     validation_df[:3]
 
@@ -141,10 +171,10 @@ def visualize_2D_AE(model, training_df, validation_df, example_data, num_example
         volume_ax.matshow(np.log2(dets), cmap=plt.cm.viridis)
         fig.add_subplot(volume_ax)
 
-    recon_ax = gridspec.GridSpecFromSubplotSpec(int(n_cols), int(n_cols/2),
+    recon_ax = gridspec.GridSpecFromSubplotSpec(int(n_cols), int(n_cols / 2),
                                                 subplot_spec=outer[2], wspace=0.1, hspace=0.1)
 
-    for axi in range(int(n_cols) * int(n_cols/2)):
+    for axi in range(int(n_cols) * int(n_cols / 2)):
         recon_sub_ax = gridspec.GridSpecFromSubplotSpec(1, 2,
                                                         subplot_spec=recon_ax[axi], wspace=0.1, hspace=0.1)
         orig_ax = plt.Subplot(fig, recon_sub_ax[0])
@@ -157,21 +187,25 @@ def visualize_2D_AE(model, training_df, validation_df, example_data, num_example
         fig.add_subplot(rec_ax)
 
     error_ax = plt.Subplot(fig, outer[3])
-    #error_ax.plot(training_df.batch, training_df.recon_loss)
+    # error_ax.plot(training_df.batch, training_df.recon_loss)
     training_plt, = error_ax.plot(training_summary.recon_loss['mean'].index.astype('int').values,
-                                  training_summary.recon_loss['mean'].values, alpha=1, color=current_palette[0], label='training')
+                                  training_summary.recon_loss['mean'].values, alpha=1, color=current_palette[0],
+                                  label='training')
 
     error_ax.fill_between(training_summary.recon_loss['mean'].index.astype('int').values,
                           training_summary.recon_loss['mean'].values -
                           training_summary.recon_loss['std'].values,
-                          training_summary.recon_loss['mean'].values + training_summary.recon_loss['std'].values, alpha=.25, color=current_palette[0])
+                          training_summary.recon_loss['mean'].values + training_summary.recon_loss['std'].values,
+                          alpha=.25, color=current_palette[0])
 
     error_ax.fill_between(validation_summary.recon_loss['mean'].index.astype('int').values,
                           validation_summary.recon_loss['mean'].values -
                           validation_summary.recon_loss['std'].values,
-                          validation_summary.recon_loss['mean'].values + validation_summary.recon_loss['std'].values, alpha=.25, color=current_palette[1])
+                          validation_summary.recon_loss['mean'].values + validation_summary.recon_loss['std'].values,
+                          alpha=.25, color=current_palette[1])
     validation_plt, = error_ax.plot(validation_summary.recon_loss['mean'].index.astype('int').values,
-                                    validation_summary.recon_loss['mean'].values - validation_summary.recon_loss['std'].values, alpha=1,
+                                    validation_summary.recon_loss['mean'].values - validation_summary.recon_loss[
+                                        'std'].values, alpha=1,
                                     color=current_palette[1], label='validation')
 
     error_ax.legend(handles=[validation_plt, training_plt], loc=1)
