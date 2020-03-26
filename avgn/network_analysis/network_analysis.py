@@ -1,23 +1,17 @@
-import numpy as np
-from tqdm import tqdm_notebook as tqdm
 import time
-import pandas as pd
-from datetime import datetime, timedelta
-from datetime import time as dt_time
-
-
+from datetime import datetime
 from tempfile import NamedTemporaryFile
 
-import matplotlib.animation as animation
-from IPython.display import HTML
-import matplotlib.pyplot as plt
 import matplotlib.collections as mcoll
-import matplotlib.path as mpath
-import matplotlib.gridspec as gridspec
 import matplotlib.dates as dates
+import matplotlib.gridspec as gridspec
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+from tqdm import tqdm
 
 
-def generate_manifold(model,dims, iter_, num_examples,batch_size,num_gpus):
+def generate_manifold(model, dims, iter_, num_examples,batch_size,num_gpus):
     """ get output for entire manifold
     """
     # allocate collector
@@ -235,7 +229,7 @@ def create_hourly_song_heatmap(BirdData):
     total_email = BirdData.groupby(level=0).hour.count()
     return hm,pr, total_email
 
-from matplotlib.colors import ColorConverter, ListedColormap
+
 import matplotlib.colors as colors
 
 def plot_song_heatmap(hm,pr, total_email):

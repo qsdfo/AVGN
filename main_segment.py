@@ -21,6 +21,8 @@ import avgn.spectrogramming.spectrogramming as sg
 import avgn.segment_song.wav_to_syllables as w2s
 
 
+dataset_name = 'CATH'
+
 def norm_zero_one(x):
     return (x - np.min(x)) / (np.max(x) - np.min(x))
 
@@ -49,7 +51,7 @@ def save_dataset(location, all_bird_syll, starting_times, lengths, wav_file, syl
 
 syll_size = 128
 hparams = {
-    'species': 'CAVI',
+    'species': dataset_name,
     # filtering
     'highcut': 20000,
     'lowcut': 500,
@@ -129,11 +131,10 @@ print(dict_save)
 _mel_basis = sg._build_mel_basis(hparams)  # build a basis function if you are using a mel spectrogram
 
 # point toward your downloaded dataset
-bird_species = glob(f'{os.path.expanduser("~")}/Data/bird-db/CAVI*')
+bird_species = glob(f'{os.path.expanduser("~")}/Data/bird-db/{dataset_name}*')
 hdf5_save_loc = f'{os.path.expanduser("~")}/Data/bird-db/hd5f_save_loc'
 if not os.path.exists(hdf5_save_loc):
     os.mkdir(hdf5_save_loc)
-# hdf5_save_loc = '/mnt/cube/tsainbur/Projects/github_repos/animalvocalizationgenerativenet/data/'
 
 key_list = (
     'all_bird_wav_file',  # Wav file (bout_raw) that the syllable came from

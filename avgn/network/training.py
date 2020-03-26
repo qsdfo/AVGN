@@ -1,12 +1,7 @@
-import numpy as np
-from tqdm import tqdm_notebook as tqdm
-import pandas as pd
-import matplotlib.pyplot as plt
-import matplotlib.gridspec as gridspec
 import os
-import sys
-import seaborn as sns
+
 import h5py
+import seaborn as sns
 
 # import local methods from the source code
 from avgn.network_analysis.network_analysis import *

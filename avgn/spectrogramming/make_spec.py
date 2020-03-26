@@ -2,7 +2,7 @@ import numpy as np
 from scipy import ndimage
 import scipy
 import copy
-from tqdm import tqdm_notebook as tqdm
+from tqdm import tqdm
 
  # Most of the these spectrogramming and inversion functions are taken from: https://gist.github.com/kastnerkyle/179d6e9a88202ab0a2fe
 def overlap(X, window_size, window_step):

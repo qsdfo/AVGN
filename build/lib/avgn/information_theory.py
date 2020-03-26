@@ -1,17 +1,13 @@
 # mutual information
 import numpy as np
 import scipy
-from tqdm.autonotebook import tqdm
 import scipy.special
-from sklearn.metrics.cluster.supervised import contingency_matrix
 from scipy import sparse as sp
 ### resampling
-from scipy import interpolate
 # modelling
-from lmfit import Model
-from scipy import signal
-import lmfit
-from sklearn.externals.joblib import Parallel, delayed # for parallelizing code
+from sklearn.externals.joblib import Parallel, delayed  # for parallelizing code
+from sklearn.metrics.cluster.supervised import contingency_matrix
+from tqdm import tqdm
 
 
 def est_entropy(X):

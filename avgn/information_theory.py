@@ -1,7 +1,7 @@
 # mutual information
 import numpy as np
 import scipy
-from tqdm.autonotebook import tqdm
+from tqdm import tqdm
 import scipy.special
 from sklearn.metrics.cluster.supervised import contingency_matrix
 from scipy import sparse as sp
