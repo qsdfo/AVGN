@@ -15,12 +15,14 @@ import pickle
 import avgn
 import avgn.spectrogramming.spectrogramming as sg
 from PIL import Image
+import copy
 
+module_path = os.path.abspath(f'{os.path.dirname(avgn.__file__)}/..')
 model_type = 'GAIA'
 bird_name = 'CAVI'
 debug = True
 train = False
-load = '../../../../data/models/Distance_AE_CAVI/2018-10-17_10-00-27/28_model.tfmod'
+load = f'{module_path}/data/models/GAIA_CAVI/2020-03-27_15-50-59/0_model.tfmod'
 
 #### Allocate GPUs
 gpus = [1]  # Here I set CUDA to only see one GPU
@@ -128,7 +130,6 @@ now_string = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")  # this is used to ide
 print(now_string)
 
 # save params
-module_path = os.path.abspath(f'{os.path.dirname(avgn.__file__)}/..')
 param_loc = f'{module_path}/data/network_params/' + network_identifier + '/'
 print(param_loc + now_string + '_params.pickle')
 if not os.path.exists(param_loc):
@@ -234,13 +235,56 @@ if train:
         os.makedirs(save_loc + 'manual/')
     model.save_network(save_loc + 'manual/manual_model.tfmod')
 
-### Translate syllables into latent space
-x = all_content['spectrograms'][:10] / 255. if debug else all_content['spectrograms'] / 255.
-x_flat = np.reshape(x, (len(x), np.prod(np.shape(x)[1:])))
+##########################################################################################
+# Interpolate between syllables
 if model_type == 'ConvAE':
+    # TODO piocher dans validation set !! là il prend du training...
+    x = all_content['spectrograms'][:10] / 255. if debug else all_content['spectrograms'] / 255.
+    x_flat = np.reshape(x, (len(x), np.prod(np.shape(x)[1:])))
     z = model.encode_x(x_flat, [hidden_size], model.batch_size)
     print(np.shape(z))
+    # choose two points
+    # get their z values
+    # interpolate between those z values
+    # pass those z values into network (encode them)
+    # plot a figure of this interpolation, save a gif
+    pt1 = 0
+    pt2 = 1
+    syllable_1 = all_content['spectrograms'][pt1]
+    syllable_2 = all_content['spectrograms'][pt2]
+    fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(6, 3))
+    ax[0].matshow(syllable_1, origin='lower')
+    ax[0].axis('off')
+    ax[1].matshow(syllable_2, origin='lower')
+    ax[1].axis('off')
+
+    n_frames_per_interp = 16  # how many points in interp.
+    z1 = model.encode_x(np.array([syllable_1.flatten() / 255.]), [hidden_size], batch_size)[0]
+    z2 = model.encode_x(np.array([syllable_2.flatten() / 255.]), [hidden_size], batch_size)[0]
+    pcts = np.linspace(0, 1, n_frames_per_interp + 1)[:-1]
+    interp_z = np.array([(z1 * pct) + (z2 * (1. - pct)) for pct in tqdm(pcts, leave=False)])
+    x_interp = model.decode_z(interp_z, [np.prod(dims[:-1])], batch_size)
+
+    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(10, 10))
+    ax.plot([z1[0], z2[0]], [z1[1], z2[1]], color='red', lw=5)
+    ax.scatter(z[:, 0], z[:, 1], color='k', s=1, alpha=.2)
+
+    # ax.scatter(xv, yv, color='r', s=30)
+    ax.axis('off')
+    plt.savefig(f'{img_save_loc}/interp_z.jpg')
+
+    fig, ax = plt.subplots(nrows=1, ncols=n_frames_per_interp, figsize=(n_frames_per_interp * 3, 3))
+    for frame in range(n_frames_per_interp):
+        ax[frame].matshow(np.squeeze(x_interp[frame].reshape(dims)), origin='lower')
+        ax[frame].axis('off')
+
 elif model_type == 'GAIA':
+    n_cols = 10  # number of interpolation between two points
+    n_rows = 4  # number of examples of interpolations
+    num_examples = 2 * n_rows
+    x = all_content['spectrograms'][:num_examples] / 255. if debug else all_content['spectrograms'] / 255.
+    x_shape = np.shape(x)[1:]
+    x_flat = np.reshape(x, (len(x), np.prod(np.shape(x)[1:])))
     # This is just for getting the dimensions of the latent space (batch_dim doesn't matter)
     x_fake, x_fake_recon, x_gen, x_gen_recon, generator_z_style, generator_z_content, x_recon = model.sess.run(
         (model.x_fake_from_real,
@@ -252,50 +296,42 @@ elif model_type == 'GAIA':
          model.x_real_recon,
          ),
         {model.x_input: x_flat[:batch_size]})
+    x_shape_flat = np.shape(x_flat)[1:]
     zs_shape = np.shape(generator_z_style)[1:]
     zc_shape = np.shape(generator_z_content)[1:]
-    z = model.encode_x(x_flat,
-                       zs_shape=zs_shape,
-                       zc_shape=zc_shape,
-                       batch_size=batch_size)
-    print(f'Z style shape: {np.shape(z[0])}\nZ content shape: {np.shape(z[1])}')
 
+    imsize = zoom = 2
+    nex = n_cols * n_rows
+    extent = 1
+    # Encode references (start and end points in interpolation)
+    zs, zc = model.encode_x(x_flat, zs_shape=zs_shape, zc_shape=zc_shape, batch_size=batch_size)
+    ns = copy.deepcopy(dims)
+    ns[1] *= n_cols
+    pcts = np.linspace(0, 1, n_cols)
+    fig, ax = plt.subplots(figsize=(zoom * n_cols, zoom * n_rows))
+    # Output image
+    canvas = np.zeros((dims[0] * n_rows, 128 * (n_cols + 2), 3))
+    for ei in np.arange(n_rows):
+        # For each row, get zs and zc interpolated
+        # TODO why linear interpolation ?? Try geodesic :)
+        zc_new = np.concatenate([[zc[ei] * pct + zc[ei + n_rows] * (1 - pct)] for pct in pcts])
+        zs_new = np.concatenate([[zs[ei] * pct + zs[ei + n_rows] * (1 - pct)] for pct in pcts])
+        # decode these interpolations
+        encoded_examples_flat = model.decode_z(z=[zs_new, zc_new],
+                                               x_shape=x_shape_flat,
+                                               batch_size=batch_size)
+        encoded_examples = np.reshape(encoded_examples_flat, (len(encoded_examples_flat), *x_shape))
+        # write results on the output canvas
+        canvas[ei * 128:(ei + 1) * 128, 128:128 * (n_cols + 1), :] = np.concatenate(
+            [i.reshape(dims) for i in encoded_examples], axis=1)
 
-### Interpolate between syllables
-### choose two points
-# get their z values
-# interpolate between those z values
-# pass those z values into network (encode them)
-# plot a figure of this interpolation, save a gif
-pt1 = 0
-pt2 = 1
-syllable_1 = all_content['spectrograms'][pt1]
-syllable_2 = all_content['spectrograms'][pt2]
-fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(6, 3))
-ax[0].matshow(syllable_1, origin='lower')
-ax[0].axis('off')
-ax[1].matshow(syllable_2, origin='lower')
-ax[1].axis('off')
+    canvas[:, -128:, :] = np.concatenate([i.reshape(dims) for i in x_flat[:n_rows]], axis=0)
+    canvas[:, :128:, :] = np.concatenate([i.reshape(dims) for i in x_flat[n_rows:]], axis=0)
 
-n_frames_per_interp = 16  # how many points in interp.
-z1 = encode_x(np.array([syllable_1.flatten() / 255.]), [hidden_size], batch_size)[0]
-z2 = encode_x(np.array([syllable_2.flatten() / 255.]), [hidden_size], batch_size)[0]
-pcts = np.linspace(0, 1, n_frames_per_interp + 1)[:-1]
-interp_z = np.array([(z1 * pct) + (z2 * (1. - pct)) for pct in tqdm(pcts, leave=False)])
-x_interp = decode_z(interp_z, [np.prod(dims[:-1])], batch_size)
-
-fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(10, 10))
-ax.plot([z1[0], z2[0]], [z1[1], z2[1]], color='red', lw=5)
-ax.scatter(z[:, 0], z[:, 1], color='k', s=1, alpha=.2)
-
-# ax.scatter(xv, yv, color='r', s=30)
-ax.axis('off')
-plt.savefig(f'{img_save_loc}/interp_z.jpg')
-
-fig, ax = plt.subplots(nrows=1, ncols=n_frames_per_interp, figsize=(n_frames_per_interp * 3, 3))
-for frame in range(n_frames_per_interp):
-    ax[frame].matshow(np.squeeze(x_interp[frame].reshape(dims)), origin='lower')
-    ax[frame].axis('off')
+    plt.imshow(canvas, interpolation=None)
+    ax.axis('off')
+    plt.savefig(f'{img_save_loc}/interpolations.jpg')
+##########################################################################################
 
 ### Demo recovering audio from a generated syllable
 # load dictionary with spectrogram parameters
