@@ -20,8 +20,8 @@ warnings.filterwarnings('ignore')
 import avgn.spectrogramming.spectrogramming as sg
 import avgn.segment_song.wav_to_syllables as w2s
 
-
 dataset_name = 'CATH'
+
 
 def norm_zero_one(x):
     return (x - np.min(x)) / (np.max(x) - np.min(x))

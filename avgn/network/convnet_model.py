@@ -256,6 +256,30 @@ class ConvAE(object):
         if verbose:
             print('Network Loaded')
 
+    def encode_x(self, x, z_shape, batch_size):
+        nex = np.ceil(len(x) / batch_size).astype('int')
+        face_z = np.zeros([nex * batch_size] + list(z_shape))
+        face_x = np.zeros([nex * batch_size] + list(np.shape(x)[1:]))
+        face_x[:len(x)] = x
+        for batch in np.arange(nex):
+            cur_batch = face_x[int(batch * batch_size):int((batch + 1) * batch_size)]
+            z_out = self.sess.run(self.z_x, {self.x_input: cur_batch})
+            face_z[batch * batch_size:(batch + 1) * batch_size, :] = z_out
+        z_final = face_z[:len(x)]
+        return z_final
+
+    def decode_z(self, z, x_shape, batch_size):
+        nex = np.ceil(len(z) / batch_size).astype('int')
+        face_x = np.zeros([nex * batch_size] + list(x_shape))
+        face_z = np.zeros([nex * batch_size] + list(np.shape(z)[1:]))
+        face_z[:len(z)] = z
+        for batch in np.arange(nex):
+            cur_batch = face_z[int(batch * batch_size):int((batch + 1) * batch_size)]
+            x_out = self.sess.run(self.x_tilde, {self.z_x: cur_batch})
+            face_x[batch * batch_size:(batch + 1) * batch_size, :] = x_out
+        x_final = face_x[:len(z)]
+        return x_final
+
 
 def shape(tensor):
     """ get the shape of a tensor

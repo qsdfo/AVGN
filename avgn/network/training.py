@@ -125,7 +125,7 @@ def train_AE(model, model_type, iter_, dataset_size=1, latent_loss_weights=1.0e-
 
 
 # function for visualizing the network in training
-def visualize_2D_AE(model, training_df, validation_df, example_data, num_examples, batch_size, num_gpus, dims, iter_,
+def visualize_2D_AE(model, model_type, training_df, validation_df, example_data, num_examples, batch_size, num_gpus, dims, iter_,
                     n_cols=4, std_to_plot=2.5, summary_density=50, save_loc=False, n_samps_per_dim=8):
     """
     Visualization of AE as it trains in 2D space
@@ -139,12 +139,15 @@ def visualize_2D_AE(model, training_df, validation_df, example_data, num_example
     training_summary = training_df.groupby(['batch_bin']).describe()
     validation_df['batch_bin'] = pd.cut(validation_df.batch + 1, bins, labels=bins[:-1])
     validation_summary = validation_df.groupby(['batch_bin']).describe()
-    validation_df[:3]
 
     # get reconstructions of example data
-    example_recon, z = model.sess.run((model.x_tilde, model.z_x), {model.x_input: example_data})
+    if model_type == 'ConvAE':
+        example_recon, z = model.sess.run((model.x_tilde, model.z_x), {model.x_input: example_data})
+    elif model_type == 'GAIA':
+        example_recon, z = model.encode(example_data)
+
     # get Z representations of data
-    z = np.array(generate_manifold(model, dims, iter_, num_examples, batch_size, num_gpus))
+    z = np.array(generate_manifold(model, model_type, dims, iter_, num_examples, batch_size, num_gpus))
 
     if np.shape(z)[1] == 2:
         # generate volumetric data
@@ -158,23 +161,25 @@ def visualize_2D_AE(model, training_df, validation_df, example_data, num_example
     fig = plt.figure(figsize=(10, 10))
     outer = gridspec.GridSpec(2, 2, wspace=0.2, hspace=0.2)
 
-    scatter_ax = plt.Subplot(fig, outer[0])
-    scatter_ax.scatter(z_score(z[:, 0]), z_score(z[:, 1]), alpha=.1, s=3, color='k')
-    scatter_ax.axis('off')
-    scatter_ax.set_xlim([-std_to_plot, std_to_plot])
-    scatter_ax.set_ylim([-std_to_plot, std_to_plot])
-    fig.add_subplot(scatter_ax)
+    if model_type == 'ConvAE':
+        scatter_ax = plt.Subplot(fig, outer[0])
+        scatter_ax.scatter(z_score(z[:, 0]), z_score(z[:, 1]), alpha=.1, s=3, color='k')
+        scatter_ax.axis('off')
+        scatter_ax.set_xlim([-std_to_plot, std_to_plot])
+        scatter_ax.set_ylim([-std_to_plot, std_to_plot])
+        fig.add_subplot(scatter_ax)
 
-    if np.shape(z)[1] == 2:
-        volume_ax = plt.Subplot(fig, outer[1])
-        volume_ax.axis('off')
-        volume_ax.matshow(np.log2(dets), cmap=plt.cm.viridis)
-        fig.add_subplot(volume_ax)
+        if np.shape(z)[1] == 2:
+            volume_ax = plt.Subplot(fig, outer[1])
+            volume_ax.axis('off')
+            volume_ax.matshow(np.log2(dets), cmap=plt.cm.viridis)
+            fig.add_subplot(volume_ax)
 
     recon_ax = gridspec.GridSpecFromSubplotSpec(int(n_cols), int(n_cols / 2),
                                                 subplot_spec=outer[2], wspace=0.1, hspace=0.1)
 
-    for axi in range(int(n_cols) * int(n_cols / 2)):
+    axis = min(int(n_cols) * int(n_cols / 2), batch_size)
+    for axi in range(axis):
         recon_sub_ax = gridspec.GridSpecFromSubplotSpec(1, 2,
                                                         subplot_spec=recon_ax[axi], wspace=0.1, hspace=0.1)
         orig_ax = plt.Subplot(fig, recon_sub_ax[0])
@@ -186,34 +191,36 @@ def visualize_2D_AE(model, training_df, validation_df, example_data, num_example
         fig.add_subplot(orig_ax)
         fig.add_subplot(rec_ax)
 
-    error_ax = plt.Subplot(fig, outer[3])
-    # error_ax.plot(training_df.batch, training_df.recon_loss)
-    training_plt, = error_ax.plot(training_summary.recon_loss['mean'].index.astype('int').values,
-                                  training_summary.recon_loss['mean'].values, alpha=1, color=current_palette[0],
-                                  label='training')
+    if model_type == 'ConvAE':
+        error_ax = plt.Subplot(fig, outer[3])
+        # error_ax.plot(training_df.batch, training_df.recon_loss)
+        training_plt, = error_ax.plot(training_summary.recon_loss['mean'].index.astype('int').values,
+                                      training_summary.recon_loss['mean'].values, alpha=1, color=current_palette[0],
+                                      label='training')
 
-    error_ax.fill_between(training_summary.recon_loss['mean'].index.astype('int').values,
-                          training_summary.recon_loss['mean'].values -
-                          training_summary.recon_loss['std'].values,
-                          training_summary.recon_loss['mean'].values + training_summary.recon_loss['std'].values,
-                          alpha=.25, color=current_palette[0])
+        error_ax.fill_between(training_summary.recon_loss['mean'].index.astype('int').values,
+                              training_summary.recon_loss['mean'].values -
+                              training_summary.recon_loss['std'].values,
+                              training_summary.recon_loss['mean'].values + training_summary.recon_loss['std'].values,
+                              alpha=.25, color=current_palette[0])
 
-    error_ax.fill_between(validation_summary.recon_loss['mean'].index.astype('int').values,
-                          validation_summary.recon_loss['mean'].values -
-                          validation_summary.recon_loss['std'].values,
-                          validation_summary.recon_loss['mean'].values + validation_summary.recon_loss['std'].values,
-                          alpha=.25, color=current_palette[1])
-    validation_plt, = error_ax.plot(validation_summary.recon_loss['mean'].index.astype('int').values,
-                                    validation_summary.recon_loss['mean'].values - validation_summary.recon_loss[
-                                        'std'].values, alpha=1,
-                                    color=current_palette[1], label='validation')
+        error_ax.fill_between(validation_summary.recon_loss['mean'].index.astype('int').values,
+                              validation_summary.recon_loss['mean'].values -
+                              validation_summary.recon_loss['std'].values,
+                              validation_summary.recon_loss['mean'].values + validation_summary.recon_loss['std'].values,
+                              alpha=.25, color=current_palette[1])
+        validation_plt, = error_ax.plot(validation_summary.recon_loss['mean'].index.astype('int').values,
+                                        validation_summary.recon_loss['mean'].values - validation_summary.recon_loss[
+                                            'std'].values, alpha=1,
+                                        color=current_palette[1], label='validation')
 
-    error_ax.legend(handles=[validation_plt, training_plt], loc=1)
-    error_ax.set_yscale("log")
-    error_ax.set_xscale("log")
-    fig.add_subplot(error_ax)
+        error_ax.legend(handles=[validation_plt, training_plt], loc=1)
+        error_ax.set_yscale("log")
+        error_ax.set_xscale("log")
+        fig.add_subplot(error_ax)
+
     if save_loc != False:
         if not os.path.exists('/'.join(save_loc.split('/')[:-1])):
             os.makedirs('/'.join(save_loc.split('/')[:-1]))
         plt.savefig(save_loc)
-    plt.show()
+    # plt.show()

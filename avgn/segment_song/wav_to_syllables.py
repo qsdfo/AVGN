@@ -1,26 +1,13 @@
-import numpy as np
+import os
 import os
 import sys
-from scipy.io import wavfile
-from scipy.signal import butter, lfilter
-from scipy import ndimage
-import copy
-import matplotlib.pyplot as plt
-import pandas as pd
-from datetime import datetime
+
 import h5py
+import pandas as pd
 from PIL import Image
-
-import avgn.spectrogramming.spectrogramming as sg
-
-
-#import numpy as np
-import matplotlib.pyplot as plt
+# import numpy as np
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
-from matplotlib.cbook import get_sample_data
-from skimage.filters.rank import entropy
-from skimage.morphology import disk
-import skimage.transform
+from scipy.signal import butter
 
 
 def imscatter(x, y, image, ax=None, zoom=1):
@@ -45,7 +32,6 @@ def imscatter(x, y, image, ax=None, zoom=1):
 src_dir = os.path.join(os.getcwd(), os.pardir, 'src')
 sys.path.append(src_dir)
 # import local methods from the source code
-from avgn.spectrogramming.make_spec import *
 from avgn.segment_song.preprocessing import *
 
 
@@ -258,7 +244,7 @@ def threshold_syllables(all_syllables, all_syllables_time_idx, syll_start, min_s
             if syll_i >= max_vis-1:
                 break
 
-        plt.show()
+        # plt.show()
 
     all_syllables = [all_syllables[i] for i, b in enumerate(good_sylls) if b == True]
     all_syllables_time_idx = np.array(all_syllables_time_idx)[good_sylls]
@@ -289,7 +275,7 @@ def plot_seg_spec(all_seg_points, mel_spec, fft_time_idx, vocal_envelope_int, se
     ax[2].plot(norm(vocal_envelope_int), color='k')
     ax[2].set_xlim([0, len(vocal_envelope_int)])
 
-    plt.show()
+    # plt.show()
 
 
 def second_pass_threshold(onsets, offsets, vocal_envelope, new_fft_rate, params):
@@ -393,7 +379,7 @@ def plt_all_syllables(all_syllables, n_mel_freq_components, max_rows=3, max_syll
                aspect='auto',
                interpolation='nearest'
                )
-    plt.show()
+    # plt.show()
 
 
 def plot_pipeline(data, vocal_envelope, wav_spectrogram, onsets, offsets, all_syllables, rate,
@@ -433,7 +419,7 @@ def plot_pipeline(data, vocal_envelope, wav_spectrogram, onsets, offsets, all_sy
     ax[3].set_ylim([-0.2, 0.2])
     ax[3].axis('off')
     plt.tight_layout()
-    plt.show()
+    # plt.show()
 
 
 def process_bout(wav_file, _mel_basis, hparams,submode=True, visualize=False):

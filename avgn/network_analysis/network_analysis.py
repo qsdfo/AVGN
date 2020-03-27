@@ -11,19 +11,25 @@ import pandas as pd
 from tqdm import tqdm
 
 
-def generate_manifold(model, dims, iter_, num_examples,batch_size,num_gpus):
+def generate_manifold(model, model_type, dims, iter_, num_examples,batch_size,num_gpus):
     """ get output for entire manifold
     """
     # allocate collector
     next_batch = iter_.__next__()
     total_batch = int(np.ceil(num_examples/batch_size/num_gpus))
-    output_data = [model.sess.run((model.z_x), {model.x_input: next_batch[0]})]
-    all_data =  [np.zeros([i if ii !=0 else total_batch*batch_size for ii,i in enumerate(np.shape(i))], dtype=np.float32) for i in  output_data]
+    if model_type == 'ConvAE':
+        output_data = [model.sess.run((model.z_x), {model.x_input: next_batch[0]})]
+    elif model_type == 'GAIA':
+        output_data = [model.sess.run((model.z_gen_style_net_real), {model.x_input: next_batch[0]})]
+    all_data = [np.zeros([i if ii !=0 else total_batch*batch_size for ii,i in enumerate(np.shape(i))], dtype=np.float32) for i in  output_data]
 
     # fill collector
     for i in tqdm(range(total_batch), leave=False):
         next_batch = iter_.__next__()
-        output_data = [model.sess.run((model.z_x), {model.x_input: next_batch[0]})]
+        if model_type == 'ConvAE':
+            output_data = [model.sess.run((model.z_x), {model.x_input: next_batch[0]})]
+        elif model_type == 'GAIA':
+            output_data = [model.sess.run((model.z_gen_style_net_real), {model.x_input: next_batch[0]})]
         for item in range(len(output_data)):
             all_data[i*batch_size:(i+1)*batch_size] = (output_data[item]).astype(np.float32)
     return all_data[:num_examples]
@@ -328,7 +334,7 @@ def draw_grid(model,dims,batch_size, xs, ys,spacing = .25, zoom = 1, savefig=Fal
     ax_spc.matshow(canvas, cmap=plt.cm.Greys, interpolation='nearest', aspect='auto')
     plt.setp( ax_spc.get_xticklabels(), visible=False)
     plt.setp( ax_spc.get_yticklabels(), visible=False)
-    plt.show()
+    # plt.show()
     # save figure
     if savefig:
         if not os.path.exists('../../data/imgs/interpolation/'+species+'/'):

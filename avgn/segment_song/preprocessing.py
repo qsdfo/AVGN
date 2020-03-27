@@ -222,7 +222,7 @@ def process_bird_wav(bird, wav_info, wav_time, params, save_to_folder, visualize
                     ax[1].set_xlabel('Frequency')
                     ax[2].set_xlabel('Time')
                     #plt.tight_layout()
-                    plt.show()
+                    # plt.show()
 
                 # Save wav file / origin / time / rate
                 save_bout_wav(data[onset_sound:offset_sound], rate, bird, save_to_folder, time_string, wav_info, wav_spectrogram, skip_created, save_spectrograms)

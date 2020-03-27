@@ -362,6 +362,35 @@ class GAIA(object):
         """encode input into z values and output"""
         return self.sess.run((self.x_tilde, self.z_gen_style_net_real), {self.x_input: X})
 
+    def encode_x(self, x, zs_shape, zc_shape, batch_size):
+        nex = np.ceil(len(x) / batch_size).astype('int')
+        face_z = [np.zeros([nex * batch_size] + list(zs_shape)), np.zeros([nex * batch_size] + list(zc_shape))]
+        face_x = np.zeros([nex * batch_size] + list(np.shape(x)[1:]))
+        face_x[:len(x)] = x
+        for batch in np.arange(nex):
+            cur_batch = face_x[int(batch * batch_size):int((batch + 1) * batch_size)]
+            zs_out, zc_out = self.sess.run([self.z_gen_style_net_real, self.z_gen_content_net_real],
+                                            {self.x_input: cur_batch})
+            face_z[0][batch * batch_size:(batch + 1) * batch_size] = zs_out
+            face_z[1][batch * batch_size:(batch + 1) * batch_size] = zc_out
+        z_final = [face_z[0][:len(x)], face_z[1][:len(x)]]
+        return z_final
+
+    def decode_z(self, z, x_shape, batch_size):
+        nex = np.ceil(len(z[0]) / batch_size).astype('int')
+        face_x = np.zeros([nex * batch_size] + list(x_shape))
+        face_z = [np.zeros([nex * batch_size] + list(np.shape(z[0])[1:])),
+                  np.zeros([nex * batch_size] + list(np.shape(z[1])[1:]))]
+        face_z[0][:len(z[0])] = z[0]
+        face_z[1][:len(z[1])] = z[1]
+        for batch in np.arange(nex):
+            cur_batch = [face_z[0][int(batch * batch_size):int((batch + 1) * batch_size)],
+                         face_z[1][int(batch * batch_size):int((batch + 1) * batch_size)]]
+            x_out = self.sess.run(self.x_fake_from_real, {self.z_gen_style_net_real: cur_batch[0],
+                                                            self.z_gen_content_net_real: cur_batch[1]})
+            face_x[batch * batch_size:(batch + 1) * batch_size] = x_out
+        faces_x_final = face_x[:len(z[0])]
+        return faces_x_final
 
 def norm(X):
     return (X - np.min(X)) / (np.max(X) - np.min(X))

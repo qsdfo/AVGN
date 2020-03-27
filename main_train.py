@@ -18,6 +18,9 @@ from PIL import Image
 
 model_type = 'GAIA'
 bird_name = 'CAVI'
+debug = True
+train = False
+load = '../../../../data/models/Distance_AE_CAVI/2018-10-17_10-00-27/28_model.tfmod'
 
 #### Allocate GPUs
 gpus = [1]  # Here I set CUDA to only see one GPU
@@ -31,13 +34,16 @@ print([x.name for x in local_device_protos if x.device_type == 'GPU'])
 
 #### Define data parameters
 dims = [128, 128, 1]  # first dimension of input data
-batch_size = 16  # size of batches to use (per GPU)
+batch_size = 2 if debug else 16  # size of batches to use (per GPU)
 
 ### Load the dataset
 # hdf_locs = glob('../../../data/CAVI_wavs/*_' + str(dims[0]) + '.hdf5')
 # hdf_locs = glob('../../../data/CAVI_wavs/*.hdf5')
 # hdf_locs = [i for i in hdf_locs if '_128' not in i]
-hdf_locs = glob(f'{os.path.expanduser("~")}/Data/bird-db/hd5f_save_loc/CAVI_wavs/*.hdf5')
+if debug:
+    hdf_locs = glob(f'{os.path.expanduser("~")}/Data/bird-db/hd5f_save_loc/CAVI_wavs/AYO_128.hdf5')
+else:
+    hdf_locs = glob(f'{os.path.expanduser("~")}/Data/bird-db/hd5f_save_loc/CAVI_wavs/*.hdf5')
 
 
 def load_from_hdf5(hdf_locs, to_load):
@@ -62,7 +68,7 @@ def load_from_hdf5(hdf_locs, to_load):
 # What information is stored in the HDF5 file
 to_load = ['spectrograms', 'lengths', 'start', 'wav_file', 'syll_start_rel_wav', 'symbols']
 all_content = load_from_hdf5(hdf_locs, to_load)
-num_examples = len(all_content['name'])
+num_examples = 32 if debug else len(all_content['name'])
 nex = 20
 for i in range(3):
     fig, ax = plt.subplots(nrows=1, ncols=nex, figsize=(nex, 1))
@@ -96,22 +102,25 @@ for ii in range(3):
 
 ### Define the network
 # [depth, filter size, stride] # decoder will become inverse of encoder
-filt = 32
-encoder_dims = [
-    [filt, 3, 1],  # 64
-    [filt, 3, 2],  # 64
-    [filt * 2, 3, 1],  # 64
-    [filt * 2, 3, 2],  # 32
-    [filt * 3, 3, 1],  # 32
-    [filt * 3, 3, 2],  # 16
-    [filt * 4, 3, 1],  # 16
-    [filt * 4, 3, 2],  # 16
-    [filt * 4, 3, 1],  # 16
-    [2000, 0, 0],  # 8
-]
-decoder_dims = encoder_dims[::-1]
-hidden_size = 64
-latent_loss = 'VAE'  # Either 'None', 'distance', or 'VAE'
+if model_type == 'ConvAE':
+    filt = 32
+    encoder_dims = [
+        [filt, 3, 1],  # 64
+        [filt, 3, 2],  # 64
+        [filt * 2, 3, 1],  # 64
+        [filt * 2, 3, 2],  # 32
+        [filt * 3, 3, 1],  # 32
+        [filt * 3, 3, 2],  # 16
+        [filt * 4, 3, 1],  # 16
+        [filt * 4, 3, 2],  # 16
+        [filt * 4, 3, 1],  # 16
+        [2000, 0, 0],  # 8
+    ]
+    decoder_dims = encoder_dims[::-1]
+    latent_loss = 'VAE'  # Either 'None', 'distance', or 'VAE'
+elif model_type == 'GAIA':
+    latent_loss = 'SSE'
+hidden_size = 8 if debug else 64
 
 # Generate a unique key (e.g. datetime) for this training instance
 network_identifier = f'{model_type}_{bird_name}'
@@ -124,8 +133,15 @@ param_loc = f'{module_path}/data/network_params/' + network_identifier + '/'
 print(param_loc + now_string + '_params.pickle')
 if not os.path.exists(param_loc):
     os.makedirs(param_loc)
-with open(param_loc + now_string + '_params.pickle', 'wb') as f:  # Python 3: open(..., 'wb')
-    pickle.dump([encoder_dims, decoder_dims, hdf_locs, dims, batch_size, hidden_size, validation_set, latent_loss], f)
+
+if model_type == 'ConvAE':
+    with open(param_loc + now_string + '_params.pickle', 'wb') as f:  # Python 3: open(..., 'wb')
+        pickle.dump([encoder_dims, decoder_dims, hdf_locs, dims, batch_size, hidden_size, validation_set, latent_loss],
+                    f)
+elif model_type == 'GAIA':
+    with open(param_loc + now_string + '_params.pickle', 'wb') as f:  # Python 3: open(..., 'wb')
+        pickle.dump([hdf_locs, dims, batch_size, hidden_size, validation_set, latent_loss],
+                    f)
 
 if model_type == 'ConvAE':
     model = conv.ConvAE(dims, batch_size, encoder_dims, decoder_dims, hidden_size, latent_loss=latent_loss,
@@ -133,12 +149,12 @@ if model_type == 'ConvAE':
                         activation_fn=tf.nn.elu)  # eps = 0.1 and lr = 1 (after lr 0.1)
 elif model_type == 'GAIA':
     model = GAIA(dims, batch_size, gpus=[0], activation_fn=tf.nn.relu,
-                 latent_loss='SSE', adam_eps=1.0, network_type='GAIA',
+                 latent_loss=latent_loss, adam_eps=1.0, network_type='GAIA',
                  n_res=4, n_sample=2, style_dim=8, ch=64, n_hidden=hidden_size)
 
 ### Train the model
 ### Parameters, etc...
-num_epochs = 50  # how many epochs to train the network for
+num_epochs = 2 if debug else 50  # how many epochs to train the network for
 epoch = 0  # initialize epochs
 save_loc = f'{module_path}/data/models/' + network_identifier + '/' + now_string + '/'
 print(save_loc)
@@ -169,83 +185,81 @@ else:
 iter_ = data_iterator(training_syllables, y=None, batch_size=batch_size, num_gpus=num_gpus, dims=dims)
 validation_iter_ = data_iterator(validation_syllables, y=None, batch_size=batch_size, num_gpus=num_gpus, dims=dims)
 
-# train_AE(model, iter_,dataset_size = len(training_syllables), validation_iter_=False, learning_rate = 1.0, return_list=return_list)
-training_df, validation_df = train_AE(model, model_type=model_type, iter_=iter_, dataset_size=int(len(training_syllables) / 100),
-                                      validation_iter_=validation_iter_, validation_size=len(validation_syllables),
+dataset_size = 2 if debug else len(training_syllables)
+validation_size = 2 if debug else len(validation_syllables)
+training_df, validation_df = train_AE(model, model_type=model_type, iter_=iter_,
+                                      dataset_size=max(2, int(dataset_size / 100)),
+                                      validation_iter_=validation_iter_, validation_size=validation_size,
                                       learning_rate=learning_rate, return_list=return_list,
                                       latent_loss_weights=latent_loss_weights)
 
 #### Train the network in full
-# model.load_network('../../../../data/models/Distance_AE_CAVI/2018-10-17_10-00-27/28_model.tfmod')
-try:
-    for epoch in tqdm(range(epoch, num_epochs)):
+if load is not None:
+    model.load_network(load)
+if train:
+    try:
+        for epoch in tqdm(range(epoch, num_epochs)):
 
-        # visualization
-        if epoch in network_visualize_progress:
-            print(epoch)
-            visualize_2D_AE(model, training_df, validation_df, example_data, num_examples,
-                            batch_size, num_gpus, dims, iter_, n_cols=4, std_to_plot=2.5,
-                            save_loc=img_save_loc + now_string + '/' + str(epoch) + '.jpg')
+            # visualization
+            if epoch in network_visualize_progress:
+                print(epoch)
+                visualize_2D_AE(model, model_type, training_df, validation_df, example_data, num_examples,
+                                batch_size, num_gpus, dims, iter_, n_cols=4, std_to_plot=2.5,
+                                save_loc=img_save_loc + str(epoch) + '.jpg')
 
-        # training
-        iter_ = data_iterator(training_syllables, y=None, batch_size=batch_size, num_gpus=num_gpus, dims=dims)
-        validation_iter_ = data_iterator(validation_syllables, y=None, batch_size=batch_size, num_gpus=num_gpus,
-                                         dims=dims)
-        training_df_epoch, validation_df_epoch = train_AE(model, iter_, dataset_size=len(training_syllables),
-                                                          validation_iter_=validation_iter_,
-                                                          validation_size=len(validation_syllables),
-                                                          learning_rate=learning_rate, return_list=return_list,
-                                                          latent_loss_weights=latent_loss_weights)
-        training_df = pd.concat([training_df, training_df_epoch])
-        validation_df = pd.concat([validation_df, validation_df_epoch])
+            # training
+            iter_ = data_iterator(training_syllables, y=None, batch_size=batch_size, num_gpus=num_gpus, dims=dims)
+            validation_iter_ = data_iterator(validation_syllables, y=None, batch_size=batch_size, num_gpus=num_gpus,
+                                             dims=dims)
+            training_df_epoch, validation_df_epoch = train_AE(model, model_type=model_type,
+                                                              iter_=iter_, dataset_size=dataset_size,
+                                                              validation_iter_=validation_iter_,
+                                                              validation_size=validation_size,
+                                                              learning_rate=learning_rate, return_list=return_list,
+                                                              latent_loss_weights=latent_loss_weights)
+            training_df = pd.concat([training_df, training_df_epoch])
+            validation_df = pd.concat([validation_df, validation_df_epoch])
 
-        # save network
-        if epoch in network_visualize_progress:
-            if not os.path.exists(save_loc):
-                os.makedirs(save_loc)
-            model.save_network(save_loc + str(epoch) + '_model.tfmod')
+            # save network
+            if epoch in network_visualize_progress:
+                if not os.path.exists(save_loc):
+                    os.makedirs(save_loc)
+                model.save_network(save_loc + str(epoch) + '_model.tfmod')
 
-except KeyboardInterrupt:
-    print('interrupted by keyboard')
+    except KeyboardInterrupt:
+        print('interrupted by keyboard')
 
-### save this model
-if not os.path.exists(save_loc + 'manual/'):
-    os.makedirs(save_loc + 'manual/')
-model.save_network(save_loc + 'manual/manual_model.tfmod')
+    ### save this model
+    if not os.path.exists(save_loc + 'manual/'):
+        os.makedirs(save_loc + 'manual/')
+    model.save_network(save_loc + 'manual/manual_model.tfmod')
 
 ### Translate syllables into latent space
-print('test')
+x = all_content['spectrograms'][:10] / 255. if debug else all_content['spectrograms'] / 255.
+x_flat = np.reshape(x, (len(x), np.prod(np.shape(x)[1:])))
+if model_type == 'ConvAE':
+    z = model.encode_x(x_flat, [hidden_size], model.batch_size)
+    print(np.shape(z))
+elif model_type == 'GAIA':
+    # This is just for getting the dimensions of the latent space (batch_dim doesn't matter)
+    x_fake, x_fake_recon, x_gen, x_gen_recon, generator_z_style, generator_z_content, x_recon = model.sess.run(
+        (model.x_fake_from_real,
+         model.x_fake_from_real_recon,
+         model.x_fake_from_sample,
+         model.x_fake_from_sample_recon,
+         model.z_gen_style_net_real,
+         model.z_gen_content_net_real,
+         model.x_real_recon,
+         ),
+        {model.x_input: x_flat[:batch_size]})
+    zs_shape = np.shape(generator_z_style)[1:]
+    zc_shape = np.shape(generator_z_content)[1:]
+    z = model.encode_x(x_flat,
+                       zs_shape=zs_shape,
+                       zc_shape=zc_shape,
+                       batch_size=batch_size)
+    print(f'Z style shape: {np.shape(z[0])}\nZ content shape: {np.shape(z[1])}')
 
-
-def encode_x(x, z_shape, batch_size):
-    nex = np.ceil(len(x) / batch_size).astype('int')
-    face_z = np.zeros([nex * batch_size] + list(z_shape))
-    face_x = np.zeros([nex * batch_size] + list(np.shape(x)[1:]))
-    face_x[:len(x)] = x
-    for batch in np.arange(nex):
-        cur_batch = face_x[int(batch * batch_size):int((batch + 1) * batch_size)]
-        z_out = model.sess.run(model.z_x, {model.x_input: cur_batch})
-        face_z[batch * batch_size:(batch + 1) * batch_size, :] = z_out
-    z_final = face_z[:len(x)]
-    return z_final
-
-
-def decode_z(z, x_shape, batch_size):
-    nex = np.ceil(len(z) / batch_size).astype('int')
-    face_x = np.zeros([nex * batch_size] + list(x_shape))
-    face_z = np.zeros([nex * batch_size] + list(np.shape(z)[1:]))
-    face_z[:len(z)] = z
-    for batch in np.arange(nex):
-        cur_batch = face_z[int(batch * batch_size):int((batch + 1) * batch_size)]
-        x_out = model.sess.run(model.x_tilde, {model.z_x: cur_batch})
-        face_x[batch * batch_size:(batch + 1) * batch_size, :] = x_out
-    x_final = face_x[:len(z)]
-    return x_final
-
-
-x = all_content['spectrograms'] / 255.
-z = encode_x(np.reshape(x, (len(x), np.prod(np.shape(x)[1:]))), [hidden_size], model.batch_size)
-print(np.shape(z))
 
 ### Interpolate between syllables
 ### choose two points
@@ -258,9 +272,9 @@ pt2 = 1
 syllable_1 = all_content['spectrograms'][pt1]
 syllable_2 = all_content['spectrograms'][pt2]
 fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(6, 3))
-ax[0].matshow(syllable_1, origin='lower');
+ax[0].matshow(syllable_1, origin='lower')
 ax[0].axis('off')
-ax[1].matshow(syllable_2, origin='lower');
+ax[1].matshow(syllable_2, origin='lower')
 ax[1].axis('off')
 
 n_frames_per_interp = 16  # how many points in interp.
@@ -276,7 +290,7 @@ ax.scatter(z[:, 0], z[:, 1], color='k', s=1, alpha=.2)
 
 # ax.scatter(xv, yv, color='r', s=30)
 ax.axis('off')
-plt.show()
+plt.savefig(f'{img_save_loc}/interp_z.jpg')
 
 fig, ax = plt.subplots(nrows=1, ncols=n_frames_per_interp, figsize=(n_frames_per_interp * 3, 3))
 for frame in range(n_frames_per_interp):
