@@ -165,7 +165,9 @@ network_save_epochs = np.unique(
 network_save_epochs = network_save_epochs[network_save_epochs > 50]
 # network_visualize_progress = np.unique(np.logspace(0,np.log2(num_epochs),num=10000, base= 2).astype('int')) # how often to visualize the network (leave empty list for never)
 network_visualize_progress = np.arange(0, num_epochs, 5)
-img_save_loc = f'{module_path}/img/' + network_identifier + '/' + now_string + '/'
+img_save_loc = f'{module_path}/img/{network_identifier}/{now_string}'
+if not os.path.exists(img_save_loc):
+    os.mkdir(img_save_loc)
 learning_rate = 1e-4
 latent_loss_weights = 1.0  # 1e-2
 
@@ -206,7 +208,7 @@ if train:
                 print(epoch)
                 visualize_2D_AE(model, model_type, training_df, validation_df, example_data, num_examples,
                                 batch_size, num_gpus, dims, iter_, n_cols=4, std_to_plot=2.5,
-                                save_loc=img_save_loc + str(epoch) + '.jpg')
+                                save_loc=f'{img_save_loc}/reconstructions_ep{str(epoch)}.jpg')
 
             # training
             iter_ = data_iterator(training_syllables, y=None, batch_size=batch_size, num_gpus=num_gpus, dims=dims)
@@ -310,7 +312,7 @@ elif model_type == 'GAIA':
     pcts = np.linspace(0, 1, n_cols)
     fig, ax = plt.subplots(figsize=(zoom * n_cols, zoom * n_rows))
     # Output image
-    canvas = np.zeros((dims[0] * n_rows, 128 * (n_cols + 2), 3))
+    canvas = np.zeros((dims[0] * n_rows, 128 * (n_cols + 2), 1))
     for ei in np.arange(n_rows):
         # For each row, get zs and zc interpolated
         # TODO why linear interpolation ?? Try geodesic :)
@@ -328,9 +330,10 @@ elif model_type == 'GAIA':
     canvas[:, -128:, :] = np.concatenate([i.reshape(dims) for i in x_flat[:n_rows]], axis=0)
     canvas[:, :128:, :] = np.concatenate([i.reshape(dims) for i in x_flat[n_rows:]], axis=0)
 
-    plt.imshow(canvas, interpolation=None)
+    plt.matshow(np.squeeze(canvas), interpolation=None)
     ax.axis('off')
     plt.savefig(f'{img_save_loc}/interpolations.jpg')
+    # TODO Generate audio
 ##########################################################################################
 
 ### Demo recovering audio from a generated syllable
