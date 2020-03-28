@@ -54,6 +54,7 @@ class GAIA(object):
                 # Visible devices must be set before GPUs have been initialized
                 print(e)
 
+        import pdb; pdb.set_trace()
         self.graph = tf.Graph()
         self.config = tf.ConfigProto(allow_soft_placement=True, log_device_placement=True)
         self.config.gpu_options.allocator_type = 'BFC'
