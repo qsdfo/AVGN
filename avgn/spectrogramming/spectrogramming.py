@@ -1,9 +1,7 @@
 import librosa
 import librosa.filters
 import numpy as np
-
 from scipy import signal
-from scipy.signal import butter, lfilter
 
 def spectrogram(y, hparams):
   D = _stft(preemphasis(y,hparams), hparams)
