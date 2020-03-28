@@ -55,7 +55,7 @@ class GAIA(object):
                 print(e)
 
         import pdb; pdb.set_trace()
-        # '/device:XLA_GPU:0'
+        # with tf.device('/device:XLA_GPU:0'):
         self.graph = tf.Graph()
         self.config = tf.ConfigProto(allow_soft_placement=True, log_device_placement=True)
         self.config.gpu_options.allocator_type = 'BFC'
