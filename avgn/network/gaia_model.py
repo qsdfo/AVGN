@@ -43,6 +43,7 @@ class GAIA(object):
         # initialize graph and session
         import pdb; pdb.set_trace()
         gpus = tf.config.experimental.list_physical_devices('GPU')
+        gpus += tf.config.experimental.list_physical_devices('XLA_GPU')
         if gpus:
             # Restrict TensorFlow to only use the first GPU
             try:

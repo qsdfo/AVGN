@@ -38,6 +38,7 @@ def main():
         num_gpus = 1
     local_device_protos = device_lib.list_local_devices()
     print([x.name for x in local_device_protos if x.device_type in ['XLA_GPU', 'GPU']])
+    import pdb; pdb.set_trace()
 
     ##########################################################################################
     # Data
