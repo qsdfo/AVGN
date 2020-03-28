@@ -38,8 +38,6 @@ def main():
         num_gpus = 1
     local_device_protos = device_lib.list_local_devices()
     print([x.name for x in local_device_protos if x.device_type in ['XLA_GPU', 'GPU']])
-    import pdb
-    pdb.set_trace()
 
     ##########################################################################################
     # Data
@@ -146,7 +144,7 @@ def main():
         with open(param_loc + now_string + '_params.pickle', 'wb') as f:  # Python 3: open(..., 'wb')
             pickle.dump([hdf_locs, dims, batch_size, hidden_size, validation_set, latent_loss],
                         f)
-    pdb.set_trace()
+
     if model_type == 'ConvAE':
         model = conv.ConvAE(dims, batch_size, encoder_dims, decoder_dims, hidden_size, latent_loss=latent_loss,
                             network_type='AE', gpus=[0], adam_eps=1.0e-8,
@@ -155,6 +153,9 @@ def main():
         model = GAIA(dims, batch_size, gpus=[0], activation_fn=tf.nn.relu,
                      latent_loss=latent_loss, adam_eps=1.0, network_type='GAIA',
                      n_res=4, n_sample=2, style_dim=8, ch=64, n_hidden=hidden_size)
+
+    import pdb
+    pdb.set_trace()
 
     # Parameters, etc...
     num_epochs = 2 if debug else 50  # how many epochs to train the network for

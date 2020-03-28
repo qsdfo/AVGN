@@ -41,8 +41,20 @@ class GAIA(object):
         """ Defines the network architecture
         """
         # initialize graph and session
+        import pdb; pdb.set_trace()
+        gpus = tf.config.experimental.list_physical_devices('GPU')
+        if gpus:
+            # Restrict TensorFlow to only use the first GPU
+            try:
+                tf.config.experimental.set_visible_devices(gpus[0], 'GPU')
+                logical_gpus = tf.config.experimental.list_logical_devices('GPU')
+                print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPU")
+            except RuntimeError as e:
+                # Visible devices must be set before GPUs have been initialized
+                print(e)
+
         self.graph = tf.Graph()
-        self.config = tf.ConfigProto(device_count={'XLA_GPU': 1}, allow_soft_placement=True, log_device_placement=True)
+        self.config = tf.ConfigProto(allow_soft_placement=True, log_device_placement=True)
         self.config.gpu_options.allocator_type = 'BFC'
         self.config.gpu_options.allow_growth = True
         self.sess = tf.InteractiveSession(graph=self.graph, config=self.config)
