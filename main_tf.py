@@ -39,6 +39,20 @@ def main():
     local_device_protos = device_lib.list_local_devices()
     print([x.name for x in local_device_protos if x.device_type in ['XLA_GPU', 'GPU']])
     import pdb; pdb.set_trace()
+
+    gpus = tf.config.experimental.list_physical_devices('GPU')
+    gpus += tf.config.experimental.list_physical_devices('XLA_GPU')
+    if gpus:
+        # Restrict TensorFlow to only use the first GPU
+        try:
+            tf.config.experimental.set_visible_devices(gpus[0], 'XLA_GPU')
+            logical_gpus = tf.config.experimental.list_logical_devices('XLA_GPU')
+            print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPU")
+        except RuntimeError as e:
+            # Visible devices must be set before GPUs have been initialized
+            print(e)
+    print(logical_gpus)
+    import pdb; pdb.set_trace()
     ##########################################################################################
     # Data
     # Define data parameters
