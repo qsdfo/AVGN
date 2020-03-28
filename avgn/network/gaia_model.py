@@ -41,44 +41,43 @@ class GAIA(object):
         """ Defines the network architecture
         """
         # initialize graph and session
-        import pdb; pdb.set_trace()
-        gpus = tf.config.experimental.list_physical_devices('GPU')
-        gpus += tf.config.experimental.list_physical_devices('XLA_GPU')
-        if gpus:
-            # Restrict TensorFlow to only use the first GPU
-            try:
-                tf.config.experimental.set_visible_devices(gpus[0], 'XLA_GPU')
-                logical_gpus = tf.config.experimental.list_logical_devices('XLA_GPU')
-                print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPU")
-            except RuntimeError as e:
-                # Visible devices must be set before GPUs have been initialized
-                print(e)
+        # import pdb; pdb.set_trace()
+        # gpus = tf.config.experimental.list_physical_devices('GPU')
+        # gpus += tf.config.experimental.list_physical_devices('XLA_GPU')
+        # if gpus:
+        #     # Restrict TensorFlow to only use the first GPU
+        #     try:
+        #         tf.config.experimental.set_visible_devices(gpus[0], 'XLA_GPU')
+        #         logical_gpus = tf.config.experimental.list_logical_devices('XLA_GPU')
+        #         print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPU")
+        #     except RuntimeError as e:
+        #         # Visible devices must be set before GPUs have been initialized
+        #         print(e)
 
-        import pdb; pdb.set_trace()
-        # with tf.device('/device:XLA_GPU:0'):
-        self.graph = tf.Graph()
-        self.config = tf.ConfigProto(allow_soft_placement=True, log_device_placement=True)
-        self.config.gpu_options.allocator_type = 'BFC'
-        self.config.gpu_options.allow_growth = True
-        self.sess = tf.InteractiveSession(graph=self.graph, config=self.config)
+        with tf.device('/device:XLA_GPU:0'):
+            self.graph = tf.Graph()
+            self.config = tf.ConfigProto(allow_soft_placement=True, log_device_placement=True)
+            self.config.gpu_options.allocator_type = 'BFC'
+            self.config.gpu_options.allow_growth = True
+            self.sess = tf.InteractiveSession(graph=self.graph, config=self.config)
 
-        # Global step needs to be defined to coordinate multi-GPU
-        self.global_step = tf.get_variable(
-            'global_step', [],
-            initializer=tf.constant_initializer(0), trainable=False)
+            # Global step needs to be defined to coordinate multi-GPU
+            self.global_step = tf.get_variable(
+                'global_step', [],
+                initializer=tf.constant_initializer(0), trainable=False)
 
-        self.x_input = tf.placeholder(tf.float32, [self.batch_size * self.num_gpus,
-                                                   np.prod(self.dims)])  # Placeholder for input data
+            self.x_input = tf.placeholder(tf.float32, [self.batch_size * self.num_gpus,
+                                                       np.prod(self.dims)])  # Placeholder for input data
 
-        if self.network_type == 'AE':
-            self.AE_initialization()
-        elif self.network_type == 'GAIA':
-            self.GAIA_initialization()
+            if self.network_type == 'AE':
+                self.AE_initialization()
+            elif self.network_type == 'GAIA':
+                self.GAIA_initialization()
 
-        # apply the gradients with our optimizers
-        # Start the Session
-        self.sess.run(tf.global_variables_initializer())
-        self.saver = tf.train.Saver()  # initialize network saver
+            # apply the gradients with our optimizers
+            # Start the Session
+            self.sess.run(tf.global_variables_initializer())
+            self.saver = tf.train.Saver()  # initialize network saver
         print('Network Initialized')
 
     def GAIA_initialization(self):
