@@ -33,11 +33,11 @@ def main():
     gpus = [0]  # Here I set CUDA to only see one GPU
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"  # see issue #152
     os.environ["CUDA_VISIBLE_DEVICES"] = ','.join([str(i) for i in gpus])
-    num_gpus = len(gpus)  # number of GPUs to use
-    if len(gpus) < 1:
-        num_gpus = 1
-    local_device_protos = device_lib.list_local_devices()
-    print([x.name for x in local_device_protos if x.device_type in ['XLA_GPU', 'GPU']])
+    # num_gpus = len(gpus)  # number of GPUs to use
+    # if len(gpus) < 1:
+    #     num_gpus = 1
+    # local_device_protos = device_lib.list_local_devices()
+    # print([x.name for x in local_device_protos if x.device_type in ['XLA_GPU', 'GPU']])
     import pdb
     pdb.set_trace()
 
@@ -146,7 +146,7 @@ def main():
         with open(param_loc + now_string + '_params.pickle', 'wb') as f:  # Python 3: open(..., 'wb')
             pickle.dump([hdf_locs, dims, batch_size, hidden_size, validation_set, latent_loss],
                         f)
-
+    pdb.set_trace()
     if model_type == 'ConvAE':
         model = conv.ConvAE(dims, batch_size, encoder_dims, decoder_dims, hidden_size, latent_loss=latent_loss,
                             network_type='AE', gpus=[0], adam_eps=1.0e-8,
