@@ -30,7 +30,7 @@ load = f'{module_path}/data/models/GAIA_CAVI/2020-03-27_15-50-59/0_model.tfmod'
 def main():
     ##########################################################################################
     # Environment
-    gpus = [1]  # Here I set CUDA to only see one GPU
+    gpus = [0]  # Here I set CUDA to only see one GPU
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"  # see issue #152
     os.environ["CUDA_VISIBLE_DEVICES"] = ','.join([str(i) for i in gpus])
     num_gpus = len(gpus)  # number of GPUs to use
