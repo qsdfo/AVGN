@@ -42,7 +42,7 @@ class GAIA(object):
         """
         # initialize graph and session
         self.graph = tf.Graph()
-        self.config = tf.ConfigProto(allow_soft_placement=True, log_device_placement=True)
+        self.config = tf.ConfigProto(device_count={'XLA_GPU': 1}, allow_soft_placement=True, log_device_placement=True)
         self.config.gpu_options.allocator_type = 'BFC'
         self.config.gpu_options.allow_growth = True
         self.sess = tf.InteractiveSession(graph=self.graph, config=self.config)

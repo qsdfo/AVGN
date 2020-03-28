@@ -29,8 +29,6 @@ def load_from_hdf5(hdf_locs, to_load, min_ex=1, verbose=False):
 
 
 # Function for creating an iterator
-
-
 def data_iterator(x, y=None, batch_size=False, num_gpus=1, dims=[10, 10], randomize=True):
     """ A simple data iterator used to load the spectrograms
      """
