@@ -28,6 +28,8 @@ load = f'{module_path}/data/models/GAIA_CAVI/2020-03-27_15-50-59/0_model.tfmod'
 
 
 def main():
+    import pdb
+    pdb.set_trace()
     ##########################################################################################
     # Environment
     gpus = [0]  # Here I set CUDA to only see one GPU
@@ -39,7 +41,6 @@ def main():
     local_device_protos = device_lib.list_local_devices()
     print([x.name for x in local_device_protos if x.device_type == 'GPU'])
 
-    import tensorflow as tf
     with tf.device('/gpu:0'):
         a = tf.constant([1.0, 2.0, 3.0, 4.0, 5.0, 6.0], shape=[2, 3], name='a')
         b = tf.constant([1.0, 2.0, 3.0, 4.0, 5.0, 6.0], shape=[3, 2], name='b')
