@@ -168,7 +168,7 @@ def main():
     network_visualize_progress = np.arange(0, num_epochs, 5)
     img_save_loc = f'{module_path}/img/{network_identifier}/{now_string}'
     if not os.path.exists(img_save_loc):
-        os.mkdir(img_save_loc)
+        os.makedirs(img_save_loc)
     learning_rate = 1e-4
     latent_loss_weights = 1.0  # 1e-2
 
